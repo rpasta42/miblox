@@ -12,7 +12,7 @@
 <body>
 
    <xml id="toolbox" style="display: none">
-     <block type="controls_if"></block>
+     <!--<block type="controls_if"></block>
      <block type="controls_repeat_ext"></block>
      <block type="logic_compare"></block>
      <block type="math_number"></block>
@@ -21,24 +21,195 @@
      <block type="text_print"></block>
     <block type="math_change"></block>
 
-    <block type="math_change1"></block>
 
     <block type="variables_get"></block>
     <block type="variables_set"></block>
+    -->
 
+    <!--
+    <block type="math_change1"></block>
     <block type="variable_set1"></block>
     <button text="A button" callbackKey="myFirstButtonPressed"></button>
+     -->
+
+    <block type="text"></block>
+    <block type="lists_create_with"></block>
+    <block type="mb_object"></block>
+    <block type="mb_field"></block>
 
    </xml>
 
-   <div id="blocklyDiv" style="height: 580px; width: 800px;"></div>
+   <div id="blocklyDiv" style="height: 580px; width: 1300px;"></div>
    <button id='export'>Export</button>
    <script>
+
+   function main() {
+      var initParams = {toolbox: document.getElementById('toolbox')}
+      var workspace = Blockly.inject('blocklyDiv', initParams);
+
+      $('#export').click(function() {
+
+         var code = Blockly.JavaScript.workspaceToCode(workspace);
+         console.log('code is:', code)
+      })
+
+      function yourFunction(button) {
+         Blockly.Variables.createVariable(button.getTargetWorkspace(), null, 'panda');
+      }
+      workspace.registerButtonCallback('myFirstButtonPressed', yourFunction)
+   }
+
+
+
+   function createNewBlock(name, blockJson, generateCode, onInit, onTooltip) {
+      Blockly.Blocks[name] = {
+        init: function() {
+          this.jsonInit(blockJson);
+          // Assign 'this' to a variable for use in the tooltip closure below.
+          var thisBlock = this;
+          if (onInit !== undefined) {
+            onInit(thisBlock, name, blockJson)
+          }
+          if (onTooltip !== undefined) {
+            onTooltip(thisBlock, name, blockJson)
+          }
+          /*this.setTooltip(function() {
+            return 'Add a number to variable "%1".'.replace('%1',
+                thisBlock.getFieldValue('VAR'));
+          });*/
+
+        }
+      };
+
+      if (generateCode !== undefined) {
+         Blockly.JavaScript[name] = generateCode
+      }
+   }
+
+   /////
+
+   let newObjectJson = {
+     "type": "mb_object",
+     "message0": "object name %1 %2 Properties %3",
+     "args0": [
+       {
+         "type": "field_input",
+         "name": "object name",
+         "text": "name"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "input_value",
+         "name": "properties",
+         "check": 'mb_field' //"Array"
+       }
+     ],
+     "colour": 230,
+     "tooltip": "",
+     "helpUrl": "sdf"
+   }
+
+   function newObjectToYaml(block) { //Blockly.JavaScript['mb_object'] = function(block) {
+     var value_name = Blockly.JavaScript.valueToCode(block, 'NAME', Blockly.JavaScript.ORDER_ATOMIC);
+     var statements_properties = Blockly.JavaScript.statementToCode(block, 'properties');
+     // TODO: Assemble JavaScript into code variable.
+     var code = '...;\n';
+     return code;
+   }
+
+   let newFieldJson = {
+     "type": "mb_field",
+     "message0": "field name %1 %2 description %3 %4 type %5 %6 children %7",
+     "args0": [
+       {
+         "type": "field_input",
+         "name": "name",
+         "text": "name"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_input",
+         "name": "description",
+         "text": "description"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_dropdown",
+         "name": "type",
+         "options": [
+           [
+             "int",
+             "integer"
+           ],
+           [
+             "str",
+             "string"
+           ],
+           [
+             "dict",
+             "dictionary"
+           ],
+           [
+             "list",
+             "list"
+           ],
+           [
+             "obj_ref",
+             "object ference"
+           ]
+         ]
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "input_statement",
+         "name": "Children"
+       }
+     ],
+     "inputsInline": true,
+     "colour": 230,
+     "tooltip": "",
+     "helpUrl": ""
+   }
+
+   //Blockly.JavaScript['mb_field'] = function(block) {
+   function newFieldToYaml(block) {
+     var text_name = block.getFieldValue('name');
+     var text_description = block.getFieldValue('description');
+     var dropdown_type = block.getFieldValue('type');
+     var statements_children = Blockly.JavaScript.statementToCode(block, 'Children');
+     // TODO: Assemble JavaScript into code variable.
+     var code = '...;\n';
+     return [code, Blockly.JavaScript.ORDER_MEMBER];
+
+   }
+
+   function onNewFieldInit(block) {
+      //block.setOutput(true, 'mb_field')
+      block.setNextStatement(true, 'mb_field');
+      block.setPreviousStatement(true, 'mb_field');
+
+   }
+
+   createNewBlock('mb_object', newObjectJson, newObjectToYaml)
+   createNewBlock('mb_field', newFieldJson, newFieldToYaml, onNewFieldInit)
+
+   //////////
+
+
    var mathChangeJson = {
-     "message0": "kkchange %1 by %2",
+     "message0": "kk1change %1 test %3 by %2",
      "args0": [
        {"type": "field_variable", "name": "VAR", "variable": "item", "variableTypes": [""]},
-       {"type": "input_value", "name": "DELTA", "check": "Number"}
+       {"type": "input_value", "name": "DELTA", "check": "Number"},
+       {"type": "button", "name": "TESTO" }
      ],
      "previousStatement": null,
      "nextStatement": null,
@@ -112,22 +283,7 @@ Blockly.JavaScript['math_change1'] = function(block) {
       }
    }
 
-
-
-   var initParams = {toolbox: document.getElementById('toolbox')}
-   var workspace = Blockly.inject('blocklyDiv', initParams);
-
-   $('#export').click(function() {
-
-      var code = Blockly.JavaScript.workspaceToCode(workspace);
-      console.log('code is:', code)
-   })
-
-   function yourFunction(button) {
-      Blockly.Variables.createVariable(button.getTargetWorkspace(), null, 'panda');
-   }
-   workspace.registerButtonCallback('myFirstButtonPressed', yourFunction)
-
+   main()
 
    </script>
 
