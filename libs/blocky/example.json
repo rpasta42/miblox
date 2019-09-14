@@ -1,0 +1,98 @@
+{
+  "type": "blueprint",
+  "text_blueprint_name": "NAME",
+  "statements_objects": [
+    {
+      "type": "object",
+      "name": "pet",
+      "properties": [
+        {
+          "type": "integer",
+          "text_name": "name",
+          "description": "description"
+        },
+        {
+          "type": "integer",
+          "text_name": "petid",
+          "description": "description"
+        },
+        {
+          "type": "integer",
+          "text_name": "breed",
+          "description": "description"
+        }
+      ]
+    },
+    1.2
+  ],
+  "statements_endpoints": [
+    {
+      "type": "endpoint",
+      "dropdown_name": "GET",
+      "text_path": "/pet/{pid}",
+      "value_url_params": null,
+      "value_req_body_type": null,
+      "value_result_type": [
+        {
+          "type": "object_ref",
+          "name": "pet"
+        },
+        1.2
+      ]
+    },
+    {
+      "type": "endpoint",
+      "dropdown_name": "GET",
+      "text_path": "/pet",
+      "value_url_params": [
+        {
+          "type": "integer",
+          "text_name": "name",
+          "description": "description"
+        },
+        {
+          "type": "integer",
+          "text_name": "breed",
+          "description": "description"
+        }
+      ],
+      "value_req_body_type": null,
+      "value_result_type": [
+        {
+          "type": "object_ref",
+          "name": "pet"
+        },
+        1.2
+      ]
+    },
+    {
+      "type": "endpoint",
+      "dropdown_name": "PUT",
+      "text_path": "/pet/{petId}",
+      "value_url_params": null,
+      "value_req_body_type": [
+        {
+          "type": "object_ref",
+          "name": "pet"
+        },
+        1.2
+      ],
+      "value_result_type": null
+    },
+    {
+      "type": "endpoint",
+      "dropdown_name": "POST",
+      "text_path": "/pet",
+      "value_url_params": null,
+      "value_req_body_type": [
+        {
+          "type": "object_ref",
+          "name": "pet"
+        },
+        1.2
+      ],
+      "value_result_type": null
+    },
+    null
+  ]
+}

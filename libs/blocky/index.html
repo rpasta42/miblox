@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
    <script src="google-blockly-4efa0da/blockly_compressed.js"></script>
@@ -30,22 +30,47 @@
     <block type="math_change1"></block>
     <block type="variable_set1"></block>
     <button text="A button" callbackKey="myFirstButtonPressed"></button>
-    <block type="lists_create_with"></block>
      -->
 
-    <block type="text"></block>
+    <block type="mb_blueprint"></block>
+    <block type="mb_endpoint"></block>
     <block type="mb_object"></block>
+    <block type="mb_object_ref"></block>
     <block type="mb_field"></block>
-
+    <block type="lists_create_with"></block>
+    <block type="text"></block>
    </xml>
 
-   <div id="blocklyDiv" style="height: 580px; width: 1300px;"></div>
+   <div style='max-width: 400px;overflow:hidden; position: fixed; width: 500px; height: 1400px; right:0px; top:4px'>
+         <div id='output1'></div>
+         <div >
+            <pre id='output2' >
+            </pre>
+         <div>
+   </div>
+
+   <div style='position:fixed; left:0; top:5px; height: 900px; width:950px'>
+      <div style='overflow:scroll; height: 900px; width: 950px; text-align:left; left:0 '>
+         <div id="blocklyDiv" style="min-height:900px; min-width:1200px;height:10000px; width:10000px; white-space:nowrap; "></div>
+      </div>
+   <div>
    <button id='export'>Export</button>
+
    <script>
 
    function main() {
       var initParams = {toolbox: document.getElementById('toolbox')}
       var workspace = Blockly.inject('blocklyDiv', initParams);
+
+      setInterval(function() {
+
+         var code = Blockly.JavaScript.workspaceToCode(workspace);
+         $('#output1').text(code)
+
+         var jsonCode = JSON.parse(code)
+         var prettyJsonStr = JSON.stringify(jsonCode, null, 2)
+         $('#output2').text(prettyJsonStr)
+      }, 1000)
 
       $('#export').click(function() {
 
@@ -94,14 +119,35 @@
 
    /////
 
+   Blockly.JavaScript['lists_create_with'] = function(block) {
+      console.log('list block:', block)
+      document.block = block
+      var result = ''
+      var result_list = []
+      let childBlocks = block.childBlocks_
+      for (var i = 0; i < childBlocks.length; i++) {
+         var childBlock = childBlocks[i]
+         var newItem = Blockly.JavaScript[childBlock.type](childBlock)
+         result += newItem
+         result_list.push(newItem)
+         if (i + 1 != childBlocks.length) {
+            result += ','
+         }
+      }
+      var resultStr = `[${result}]`
+      //resultStr = result_list
+     return [resultStr, Blockly.JavaScript.ORDER_MEMBER];
+
+   }
+
    var newObjectJson = {
      "type": "mb_object",
      "message0": "object name %1 %2 Properties %3",
      "args0": [
        {
          "type": "field_input",
-         "name": "object name",
-         "text": "name"
+         "name": "name",
+         "text": "object name"
        },
        {
          "type": "input_dummy"
@@ -109,7 +155,7 @@
        {
          "type": "input_value",
          "name": "properties",
-         "check": 'mb_field' //"Array"
+         "check": 'Array' //'mb_field' //"Array"
        }
      ],
      "colour": 230,
@@ -119,11 +165,23 @@
    }
 
    function newObjectToYaml(block) { //Blockly.JavaScript['mb_object'] = function(block) {
-     var value_name = Blockly.JavaScript.valueToCode(block, 'NAME', Blockly.JavaScript.ORDER_ATOMIC);
-     var statements_properties = Blockly.JavaScript.statementToCode(block, 'properties');
+     //var value_name = Blockly.JavaScript.valueToCode(block, 'NAME', Blockly.JavaScript.ORDER_ATOMIC);
+     var value_name = block.getFieldValue('name');
+     var properties = Blockly.JavaScript.valueToCode(block, 'properties', Blockly.JavaScript.ORDER_ATOMIC);
+
+      if (properties == '')
+         properties = null
+      else {
+         properties = properties.substr(1, properties.length - 2)
+      }
      // TODO: Assemble JavaScript into code variable.
-     var code = statements_properties + '...;\n';
-     return code;
+     var code = `{
+         "type": "object",
+         "name": "${value_name}",
+         "properties": ${properties}
+     }`
+     return [code, Blockly.JavaScript.ORDER_MEMBER];
+     //return code
    }
 
    let newFieldJson = {
@@ -193,9 +251,14 @@
      var dropdown_type = block.getFieldValue('type');
      var statements_children = Blockly.JavaScript.statementToCode(block, 'Children');
      // TODO: Assemble JavaScript into code variable.
-     var code = '...;\n';
-      code += `text_name: ${text_name}; description: ${text_description}; type: ${dropdown_type}`
-     return code //[code, Blockly.JavaScript.ORDER_MEMBER];
+     var code = `{
+        "type": "field",
+        "text_name": "${text_name}",
+        "description": "${text_description}",
+        "type": "${dropdown_type}"
+      }`
+     return code
+      return [code, Blockly.JavaScript.ORDER_MEMBER];
 
    }
 
@@ -207,11 +270,18 @@
    }
 
    function onNewObjInit(block) {
-      block.setStyle('list_blocks');
+      /*block.setStyle('list_blocks');
       block.itemCount_ = 3;
       block.updateShape_();
-      block.setOutput(true, 'Array');
-      block.setMutator(new Blockly.Mutator(['lists_create_with_item']));
+
+      block.setPreviousStatement(true);
+      block.setNextStatement(true, 'mb_object');
+
+      //block.setOutput(true, 'Array');
+      block.setMutator(new Blockly.Mutator(['lists_create_with_item']));*/
+      //block.setPreviousStatement(true);
+      //block.setNextStatement(true, 'mb_object');
+      block.setOutput(true, 'String');
    }
 
    let otherNewObjMethods = {
@@ -322,8 +392,253 @@
    }
 
 
-   createNewBlock('mb_object', newObjectJson, newObjectToYaml, onNewObjInit, otherNewObjMethods)
+   createNewBlock('mb_object', newObjectJson, newObjectToYaml, onNewObjInit)///, otherNewObjMethods)
    createNewBlock('mb_field', newFieldJson, newFieldToYaml, onNewFieldInit)
+
+   var mbObjectRefJson = {
+     "type": "mb_field",
+     "message0": "object ref name %1",
+     "args0": [
+       {
+         "type": "field_input",
+         "name": "NAME",
+         "text": "name"
+       },
+     ],
+     "inputsInline": false,
+     "colour": 230,
+     "tooltip": "",
+     "helpUrl": ""
+   }
+
+   function mbObjectRefToYaml(block) {
+     var value_name = block.getFieldValue('NAME')
+
+     var code = `{
+         "type": "object_ref",
+         "name": "${value_name}"
+     }`
+     //return code;
+      return [code, Blockly.JavaScript.ORDER_MEMBER];
+
+   }
+
+   function mbObjectRefInit(block) {
+      block.setOutput(true, 'string')
+   }
+   createNewBlock('mb_object_ref', mbObjectRefJson, mbObjectRefToYaml, mbObjectRefInit)
+
+
+   let mbEndpointJson = {
+     "type": "mp_endpoint",
+     "message0": "URL Endpoint %1 Example path: /pet/{petId} %2 Method %3 %4 Operation ID %5 %6 PATH %7 %8 URL PARAMS %9 REQ_BODY_TYPE %10 RESULT TYPE %11",
+     "args0": [
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_dropdown",
+         "name": "NAME",
+         "options": [
+           [
+             "GET",
+             "GET"
+           ],
+           [
+             "POST",
+             "POST"
+           ],
+           [
+             "PUT",
+             "PUT"
+           ],
+           [
+             "PATCH",
+             "PATCH"
+           ],
+           [
+             "DELETE",
+             "DELETE"
+           ]
+         ]
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_dropdown",
+         "name": "NAME",
+         "options": [
+           [
+             "option",
+             "OPTIONNAME"
+           ],
+           [
+             "option",
+             "OPTIONNAME"
+           ],
+           [
+             "option",
+             "OPTIONNAME"
+           ]
+         ]
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_input",
+         "name": "PATH",
+         "text": "/endpoint/{testId}"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "input_value",
+         "name": "URL PARAMS",
+         "check": "Array"
+       },
+       {
+         "type": "input_value",
+         "name": "REQ_BODY_TYPE",
+         "check": "Array"
+       },
+       {
+         "type": "input_value",
+         "name": "RESULT_TYPE",
+         "check": "Array"
+       }
+     ],
+     "inputsInline": false,
+     "colour": 230,
+     "tooltip": "",
+     "helpUrl": ""
+   }
+
+
+   var mbEndpointToYaml = function(block) {
+   //Blockly.JavaScript['endpoint'] = function(block) {
+     var dropdown_name = block.getFieldValue('NAME');
+     var dropdown_name = block.getFieldValue('NAME');
+     var text_path = block.getFieldValue('PATH');
+     var value_url_params = Blockly.JavaScript.valueToCode(block, 'URL PARAMS', Blockly.JavaScript.ORDER_ATOMIC);
+      console.log('url params:', value_url_params, typeof value_url_params)
+     var value_req_body_type = Blockly.JavaScript.valueToCode(block, 'REQ_BODY_TYPE', Blockly.JavaScript.ORDER_ATOMIC);
+     var value_result_type = Blockly.JavaScript.valueToCode(block, 'RESULT_TYPE', Blockly.JavaScript.ORDER_ATOMIC);
+
+      value_url_params = value_url_params.substr(1, value_url_params.length - 2)
+      value_req_body_type = value_req_body_type.substr(1, value_req_body_type.length - 2)
+      value_result_type = value_result_type.substr(1, value_result_type.length - 2)
+
+     if (value_result_type == '')
+      value_result_type = null
+     if (value_url_params == '')
+      value_url_params = null
+     if (value_req_body_type == '')
+      value_req_body_type = null
+
+      document.block = block
+     // TODO: Assemble JavaScript into code variable.
+     var code = ''
+      var isFirst = block.previousConnection == undefined
+      var isLast = block.nextConnection == undefined
+      isFirst = block.parentBlock_ === null
+      isLast = block.outputConnection === null
+
+      /*if (isFirst) {
+         //code += '['
+      } else { code += ',' }*/
+
+      code += `{ "type": "endpoint",
+         "dropdown_name": "${dropdown_name}",
+         "text_path": "${text_path}",
+         "value_url_params": ${value_url_params},
+         "value_req_body_type": ${value_req_body_type},
+         "value_result_type": ${value_result_type}
+      }`
+      //block.childBlocks_, parentBlock_
+      /*if (isLast) {
+         code += ']'
+      } else {
+         code += ','
+      }*/
+      code += ','
+
+     return code;
+   };
+
+   var mbBlueprintJson = {
+     "type": "mb_blueprint",
+     "message0": "BLUEPRINT %1 BLUEPRINT NAME %2 %3 Objects %4 ENDPOINTS %5",
+     "args0": [
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "field_input",
+         "name": "BLUEPRINT_NAME",
+         "text": "NAME"
+       },
+       {
+         "type": "input_dummy"
+       },
+       {
+         "type": "input_value",
+
+         "name": "Objects",
+         "check": [
+           "mb_object",
+           "Array"
+         ]
+       },
+       {
+         "type": "input_statement",
+         "name": "ENDPOINTS",
+         "check": [
+           "mb_field",
+           "Array"
+         ]
+       }
+     ],
+     "colour": 230,
+     "tooltip": "",
+     "helpUrl": ""
+   }
+
+   var mbBlueprintToYaml = function(block) {
+      var text_blueprint_name = block.getFieldValue('BLUEPRINT_NAME');
+      //var statements_objects = Blockly.JavaScript.statementToCode(block, 'Objects');
+      var statements_objects = Blockly.JavaScript.valueToCode(block, 'Objects', Blockly.JavaScript.ORDER_ATOMIC);
+      var statements_endpoints = Blockly.JavaScript.statementToCode(block, 'ENDPOINTS');
+
+      if (statements_objects == '')
+         statements_objects = null
+      else
+         statements_objects = statements_objects.substr(1, statements_objects.length - 2)
+      if (statements_endpoints == '')
+         statements_endpoints = null
+
+      // TODO: Assemble JavaScript into code variable.
+      var code = `{
+         "type": "blueprint",
+         "text_blueprint_name": "${text_blueprint_name}",
+         "statements_objects": ${statements_objects},
+         "statements_endpoints": [${statements_endpoints} null]
+      }`
+      return code;
+   }
+
+   function onNewEndpoint(block) {
+      block.setPreviousStatement(true)
+      block.setNextStatement(true, 'mb_endpoint')
+   }
+
+   createNewBlock('mb_endpoint', mbEndpointJson, mbEndpointToYaml, onNewEndpoint)
+   createNewBlock('mb_blueprint', mbBlueprintJson, mbBlueprintToYaml)
 
    //////////
 
