@@ -30,10 +30,10 @@
     <block type="math_change1"></block>
     <block type="variable_set1"></block>
     <button text="A button" callbackKey="myFirstButtonPressed"></button>
+    <block type="lists_create_with"></block>
      -->
 
     <block type="text"></block>
-    <block type="lists_create_with"></block>
     <block type="mb_object"></block>
     <block type="mb_field"></block>
 
@@ -61,8 +61,8 @@
 
 
 
-   function createNewBlock(name, blockJson, generateCode, onInit, onTooltip) {
-      Blockly.Blocks[name] = {
+   function createNewBlock(name, blockJson, generateCode, onInit, otherMethods) {
+      let block= {
         init: function() {
           this.jsonInit(blockJson);
           // Assign 'this' to a variable for use in the tooltip closure below.
@@ -70,9 +70,9 @@
           if (onInit !== undefined) {
             onInit(thisBlock, name, blockJson)
           }
-          if (onTooltip !== undefined) {
+          /*if (onTooltip !== undefined) {
             onTooltip(thisBlock, name, blockJson)
-          }
+          }*/
           /*this.setTooltip(function() {
             return 'Add a number to variable "%1".'.replace('%1',
                 thisBlock.getFieldValue('VAR'));
@@ -80,6 +80,12 @@
 
         }
       };
+      if (otherMethods !== undefined) {
+         block = { ...block, ...otherMethods }
+      }
+
+
+      Blockly.Blocks[name] = block
 
       if (generateCode !== undefined) {
          Blockly.JavaScript[name] = generateCode
@@ -88,7 +94,7 @@
 
    /////
 
-   let newObjectJson = {
+   var newObjectJson = {
      "type": "mb_object",
      "message0": "object name %1 %2 Properties %3",
      "args0": [
@@ -108,14 +114,15 @@
      ],
      "colour": 230,
      "tooltip": "",
-     "helpUrl": "sdf"
+     "helpUrl": "sdf",
+     //'extensions': ['lists_create_with_item']
    }
 
    function newObjectToYaml(block) { //Blockly.JavaScript['mb_object'] = function(block) {
      var value_name = Blockly.JavaScript.valueToCode(block, 'NAME', Blockly.JavaScript.ORDER_ATOMIC);
      var statements_properties = Blockly.JavaScript.statementToCode(block, 'properties');
      // TODO: Assemble JavaScript into code variable.
-     var code = '...;\n';
+     var code = statements_properties + '...;\n';
      return code;
    }
 
@@ -173,7 +180,7 @@
          "name": "Children"
        }
      ],
-     "inputsInline": true,
+     "inputsInline": false,
      "colour": 230,
      "tooltip": "",
      "helpUrl": ""
@@ -187,18 +194,135 @@
      var statements_children = Blockly.JavaScript.statementToCode(block, 'Children');
      // TODO: Assemble JavaScript into code variable.
      var code = '...;\n';
-     return [code, Blockly.JavaScript.ORDER_MEMBER];
+      code += `text_name: ${text_name}; description: ${text_description}; type: ${dropdown_type}`
+     return code //[code, Blockly.JavaScript.ORDER_MEMBER];
 
    }
 
    function onNewFieldInit(block) {
-      //block.setOutput(true, 'mb_field')
-      block.setNextStatement(true, 'mb_field');
-      block.setPreviousStatement(true, 'mb_field');
+      block.setOutput(true, 'mb_field')
+      //block.setNextStatement(true, 'mb_field');
+      //block.setPreviousStatement(true, 'mb_field');
 
    }
 
-   createNewBlock('mb_object', newObjectJson, newObjectToYaml)
+   function onNewObjInit(block) {
+      block.setStyle('list_blocks');
+      block.itemCount_ = 3;
+      block.updateShape_();
+      block.setOutput(true, 'Array');
+      block.setMutator(new Blockly.Mutator(['lists_create_with_item']));
+   }
+
+   let otherNewObjMethods = {
+
+     mutationToDom: function() {
+       var container = Blockly.utils.xml.createElement('mutation');
+       container.setAttribute('items', this.itemCount_);
+       return container;
+     },
+     /**
+      * Parse XML to restore the list inputs.
+      * @param {!Element} xmlElement XML storage element.
+      * @this Blockly.Block
+      */
+     domToMutation: function(xmlElement) {
+       this.itemCount_ = parseInt(xmlElement.getAttribute('items'), 10);
+       this.updateShape_();
+     },
+     /**
+      * Populate the mutator's dialog with this block's components.
+      * @param {!Blockly.Workspace} workspace Mutator's workspace.
+      * @return {!Blockly.Block} Root block in mutator.
+      * @this Blockly.Block
+      */
+     decompose: function(workspace) {
+       var containerBlock = workspace.newBlock('lists_create_with_container');
+       containerBlock.initSvg();
+       var connection = containerBlock.getInput('STACK').connection;
+       for (var i = 0; i < this.itemCount_; i++) {
+         var itemBlock = workspace.newBlock('lists_create_with_item');
+         itemBlock.initSvg();
+         connection.connect(itemBlock.previousConnection);
+         connection = itemBlock.nextConnection;
+       }
+       return containerBlock;
+     },
+     /**
+      * Reconfigure this block based on the mutator dialog's components.
+      * @param {!Blockly.Block} containerBlock Root block in mutator.
+      * @this Blockly.Block
+      */
+     compose: function(containerBlock) {
+       var itemBlock = containerBlock.getInputTargetBlock('STACK');
+       // Count number of inputs.
+       var connections = [];
+       while (itemBlock) {
+         connections.push(itemBlock.valueConnection_);
+         itemBlock = itemBlock.nextConnection &&
+             itemBlock.nextConnection.targetBlock();
+       }
+       // Disconnect any children that don't belong.
+       for (var i = 0; i < this.itemCount_; i++) {
+         var connection = this.getInput('ADD' + i).connection.targetConnection;
+         if (connection && connections.indexOf(connection) == -1) {
+           connection.disconnect();
+         }
+       }
+       this.itemCount_ = connections.length;
+       this.updateShape_();
+       // Reconnect any child blocks.
+       for (var i = 0; i < this.itemCount_; i++) {
+         Blockly.Mutator.reconnect(connections[i], this, 'ADD' + i);
+       }
+     },
+     /**
+      * Store pointers to any connected child blocks.
+      * @param {!Blockly.Block} containerBlock Root block in mutator.
+      * @this Blockly.Block
+      */
+     saveConnections: function(containerBlock) {
+       var itemBlock = containerBlock.getInputTargetBlock('STACK');
+       var i = 0;
+       while (itemBlock) {
+         var input = this.getInput('ADD' + i);
+         itemBlock.valueConnection_ = input && input.connection.targetConnection;
+         i++;
+         itemBlock = itemBlock.nextConnection &&
+             itemBlock.nextConnection.targetBlock();
+       }
+     },
+     /**
+      * Modify this block to have the correct number of inputs.
+      * @private
+      * @this Blockly.Block
+      */
+     updateShape_: function() {
+       if (this.itemCount_ && this.getInput('EMPTY')) {
+         this.removeInput('EMPTY');
+       } else if (!this.itemCount_ && !this.getInput('EMPTY')) {
+         this.appendDummyInput('EMPTY')
+             .appendField(Blockly.Msg['LISTS_CREATE_EMPTY_TITLE']);
+       }
+       // Add new inputs.
+       for (var i = 0; i < this.itemCount_; i++) {
+         if (!this.getInput('ADD' + i)) {
+           var input = this.appendValueInput('ADD' + i);
+           if (i == 0) {
+             input.appendField(Blockly.Msg['LISTS_CREATE_WITH_INPUT_WITH']);
+           }
+         }
+       }
+       // Remove deleted inputs.
+       while (this.getInput('ADD' + i)) {
+         this.removeInput('ADD' + i);
+         i++;
+       }
+     }
+   }
+
+
+   createNewBlock('mb_object', newObjectJson, newObjectToYaml, onNewObjInit, otherNewObjMethods)
    createNewBlock('mb_field', newFieldJson, newFieldToYaml, onNewFieldInit)
 
    //////////
